@@ -1,0 +1,39 @@
+kubectl get pods -l pod=scaletestapp-pod
+-----
+NAME                           READY   STATUS    RESTARTS   AGE
+scaletestapp-bdcdcb9c9-k9p7b   1/1     Running   0          33s
+Подал нагрузку 1000 клиентов, 333 RPS.
+
+Подал нагрузку 100 пользователей.
+
+kubectl get pods -l pod=scaletestapp-pod
+-----
+NAME                           READY   STATUS    RESTARTS   AGE
+scaletestapp-bdcdcb9c9-2648p   1/1     Running   0          15s
+scaletestapp-bdcdcb9c9-k9p7b   1/1     Running   0          3m46s
+
+Подал нагрузку 1000 пользователей.
+
+kubectl get pods -l pod=scaletestapp-pod
+NAME                           READY   STATUS    RESTARTS   AGE
+scaletestapp-bdcdcb9c9-2648p   1/1     Running   0          3m12s
+scaletestapp-bdcdcb9c9-2ws48   1/1     Running   0          72s
+scaletestapp-bdcdcb9c9-5p5fh   1/1     Running   0          57s
+scaletestapp-bdcdcb9c9-k9p7b   1/1     Running   0          6m43s
+scaletestapp-bdcdcb9c9-rp4bd   1/1     Running   0          12s
+scaletestapp-bdcdcb9c9-sfd9t   1/1     Running   0          72s
+scaletestapp-bdcdcb9c9-txhjn   1/1     Running   0          12s
+
+----------------------------------------------------------------------------------------
+kubectl describe deployment scaletestapp
+
+...пропущено
+
+Events:
+  Type    Reason             Age    From                   Message
+  ----    ------             ----   ----                   -------
+  Normal  ScalingReplicaSet  14m    deployment-controller  Scaled up replica set scaletestapp-bdcdcb9c9 from 0 to 1
+  Normal  ScalingReplicaSet  11m    deployment-controller  Scaled up replica set scaletestapp-bdcdcb9c9 from 1 to 2
+  Normal  ScalingReplicaSet  9m14s  deployment-controller  Scaled up replica set scaletestapp-bdcdcb9c9 from 2 to 4
+  Normal  ScalingReplicaSet  8m59s  deployment-controller  Scaled up replica set scaletestapp-bdcdcb9c9 from 4 to 5
+  Normal  ScalingReplicaSet  8m14s  deployment-controller  Scaled up replica set scaletestapp-bdcdcb9c9 from 5 to 7
