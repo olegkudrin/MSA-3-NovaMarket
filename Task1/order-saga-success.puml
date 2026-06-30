@@ -1,0 +1,83 @@
+@startuml order-saga-success
+skinparam dpi 120
+
+title Saga: Процесс создания заказа (успех)
+
+actor "Продавец" as Seller
+actor "Покупатель" as Buyer
+
+== Создание заказа ==
+
+note right Buyer
+Обращение идет через API Gateway.
+end note
+
+Buyer -> OrderService: POST /orders
+activate OrderService
+OrderService -> OrderService: Проверяет данные заказа
+OrderService -> OrderService: Создает заказ\n(status: PENDING)
+OrderService -> Kafka: Публикует OrderCreated
+activate Kafka
+OrderService --> Buyer: 202 Accepted\n{orderId, status: PENDING}
+deactivate OrderService
+
+== Резервирование товара ==
+
+Kafka -> InventoryService: Событие OrderCreated
+activate InventoryService
+InventoryService -> InventoryService: Проверяет наличие нужного товара
+InventoryService -> InventoryService: Резерирует товар на складе
+InventoryService -> Kafka: Публикует StockReserved
+deactivate InventoryService
+
+== Обработка платежа ==
+
+note right Buyer
+Покупатель взаимодействует с платежной системой напрямую.
+end note
+
+Kafka -> PaymentService: Событие StockReserved
+activate PaymentService
+PaymentService -> PaymentService: Начинает транзакцию на оплату
+PaymentService -> PaymentService: Обрабатывает платеж
+PaymentService -> Kafka: Публикует PaymentCompleted
+deactivate PaymentService
+
+== Подготовка к доставке ==
+
+Kafka -> DeliveryService: Событие PaymentCompleted
+activate DeliveryService
+DeliveryService -> DeliveryService: Формирует заявку на доставку
+DeliveryService -> DeliveryService: Отправляет заявку в логистическую службу
+DeliveryService -> Kafka: Публикует DeliveryRequested
+deactivate DeliveryService
+
+== Подтверждение заказа ==
+
+Kafka -> OrderService: Событие DeliveryRequested
+activate OrderService
+OrderService -> OrderService: Обновляет статус заказа\n(status: CONFIRMED)
+OrderService -> Kafka: Публикует OrderConfirmed
+deactivate OrderService
+
+== Отправка уведомлений ==
+
+Kafka -> NotifyService: Событие OrderConfirmed
+activate NotifyService
+NotifyService -> NotifyService: Формирует уведомление\nоб успешном заказе
+NotifyService -> Buyer: Отправляет уведомление покупателю
+NotifyService -> Seller: Отправляет уведомление продавцу
+deactivate NotifyService
+
+== Получение статуса покупателем ==
+
+note right Buyer
+Мобильное приложение опрашивает текущий статус.
+end note
+
+Buyer -> OrderService: GET /orders/{orderId}
+activate OrderService
+OrderService --> Buyer: Детали заказа\n(status: CONFIRMED)
+deactivate OrderService
+
+@enduml

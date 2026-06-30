@@ -1,0 +1,68 @@
+@startuml nova-market-hist
+skinparam dpi 120
+
+title Архитектура NovaMarket
+
+!include <C4/C4_Container>
+
+note as note1
+Упрощения:
+
+Не показаны базы данных сервисов, у каждого сервиса своя база данных.
+
+Отображен обмен только по событиям просмотра истории заказов.
+
+Не изображен прокси для доступа к внешним системам (nginx).
+end note
+
+Person(Buyer, "Покупатель", "Пользователь маркетплейса")
+Person(Seller, "Продавец", "Поставщик товаров")
+
+System_Boundary(NovaMarket, "NovaMarket") {
+    Container(ApiGateway, "API Gateway", "nginx", "Маршрутизация запросов, аутентификация, rate limiting")
+    ContainerQueue(Kafka, "Message Broker", "Kafka", "Асинхронная коммуникация между сервисами через события")
+
+    Container(UserService, "User Service", "Java/Spring Boot", "Управление пользователями, аутентификация, авторизация")
+    Container(ProductService, "Product Service", "Java/Spring Boot", "Управление каталогом товаров, поиск, фильтрация")
+    Container(ReviewService, "Review Service", "Python/FastAPI", "Управление отзывами и рейтингами товаров")
+    Container(CartService, "Cart Service", "Node.js", "Управление корзиной покупок")
+    Container(InventoryService, "Inventory Service", "Go", "Управление складом, резервирование товаров")
+    Container(OrderService, "Order Service", "Java/Spring Boot", "Обработка и отслеживание заказов")
+    Container(PaymentService, "Payment Service", "Python/FastAPI", "Обработка платежей, интеграция с платежными системами")
+    Container(DeliveryService, "Delivery Service", "Java/Spring Boot", "Управление доставкой товаров")
+    Container(NotifyService, "Notify Service", "Node.js", "Отправка уведомлений через различные каналы")
+    Container(HistoryService, "History Service", "Java/Spring Boot", "Обеспечивает доступ к истории заказов")
+    Container(ReceiptService, "Receipt Service", "Java/Spring Boot", "Обеспечивает доступ к чекам по заказам")
+
+    Rel(ApiGateway, UserService, "Маршрутизирует запросы", "REST API")
+    Rel(ApiGateway, ProductService, "Маршрутизирует запросы", "REST API")
+    Rel(ApiGateway, ReviewService, "Маршрутизирует запросы", "REST API")
+    Rel(ApiGateway, CartService, "Маршрутизирует запросы", "REST API")
+    Rel(ApiGateway, InventoryService, "Маршрутизирует запросы", "REST API")
+    Rel(ApiGateway, OrderService, "Маршрутизирует запросы", "REST API")
+    Rel(ApiGateway, PaymentService, "Маршрутизирует запросы", "REST API")
+    Rel(ApiGateway, DeliveryService, "Маршрутизирует запросы", "REST API")
+    Rel(ApiGateway, HistoryService, "Маршрутизирует запросы", "REST API")
+
+    Rel(OrderService, Kafka, "Публикует", "OrderConfirmed, OrderCancelled")
+    Rel(PaymentService, Kafka, "Публикует", "ReceiptIssued")
+
+    Rel(Kafka, HistoryService, "Потребляет", "OrderCreated, OrderCancelled")
+    Rel(Kafka, NotifyService, "Потребляет", "ReceiptIssued")
+    Rel(Kafka, ReceiptService, "Потребляет", "ReceiptIssued")
+
+    Rel(HistoryService, ReceiptService, "Запрашивает чеки при необходимости")
+}
+
+Rel(Buyer, ApiGateway, "Просматривает товары, делает заказы", "REST API")
+Rel(Seller, ApiGateway, "Управляет товарами, просматривает продажи", "REST API")
+
+System_Ext(PaymentGateway, "Платежный шлюз",  "Внешние платежные системы")
+System_Ext(LogisticProvider, "Logistic Provider", "Доставляет грузы по назначению")
+System_Ext(MessagingProvider, "Messaging Provider", "Доставляет сообщения по разным каналам")
+
+Rel(PaymentService, PaymentGateway, "Обрабатывает платежи")
+Rel(DeliveryService, LogisticProvider, "Обеспечивает доставку товаров")
+Rel(NotifyService, MessagingProvider, "Обеспечивает доставку уведомлений")
+
+@enduml

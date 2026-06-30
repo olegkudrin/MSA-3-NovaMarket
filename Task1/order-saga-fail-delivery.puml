@@ -1,0 +1,97 @@
+@startuml order-saga-fail-delivery
+skinparam dpi 120
+
+title Saga: Процесс создания заказа (отклонена доставка)
+
+actor "Покупатель" as Buyer
+
+== Создание заказа ==
+
+note right Buyer
+Обращение идет через API Gateway.
+end note
+
+Buyer -> OrderService: POST /orders
+activate OrderService
+OrderService -> OrderService: Проверяет данные заказа
+OrderService -> OrderService: Создает заказ\n(status: PENDING)
+OrderService -> Kafka: Публикует OrderCreated
+activate Kafka
+OrderService --> Buyer: 202 Accepted\n{orderId, status: PENDING}
+deactivate OrderService
+
+== Резервирование товара ==
+
+Kafka -> InventoryService: Событие OrderCreated
+activate InventoryService
+InventoryService -> InventoryService: Проверяет наличие нужного товара
+InventoryService -> InventoryService: Резерирует товар на складе
+InventoryService -> Kafka: Публикует StockReserved
+deactivate InventoryService
+
+== Обработка платежа ==
+
+note right Buyer
+Покупатель взаимодействует с платежной системой напрямую.
+end note
+
+Kafka -> PaymentService: Событие StockReserved
+activate PaymentService
+PaymentService -> PaymentService: Начинает транзакцию на оплату
+PaymentService -> PaymentService: Обрабатывает платеж
+PaymentService -> Kafka: Публикует PaymentCompleted
+deactivate PaymentService
+
+== Подготовка к доставке ==
+
+Kafka -> DeliveryService: Событие PaymentCompleted
+activate DeliveryService
+DeliveryService -> DeliveryService: Формирует заявку на доставку
+DeliveryService -> DeliveryService: Логистическая служба отклонила заявку
+DeliveryService -> Kafka: Публикует DeliveryDeclined
+deactivate DeliveryService
+
+== Отмена заказа (компенсация) ==
+
+Kafka -> OrderService: Событие DeliveryDeclined
+activate OrderService
+OrderService -> OrderService: Обновляет статус заказа\n(status: CANCELLED)
+OrderService -> Kafka: Публикует OrderCancelled
+deactivate OrderService
+
+== Возврат средств (компенсация) ==
+
+Kafka -> PaymentService: Событие OrderCancelled
+activate PaymentService
+PaymentService -> PaymentService: Отменяет платеж
+PaymentService -> Kafka: Публикует RefundCompleted
+deactivate PaymentService
+
+== Освобождение товара (компенсация) ==
+
+Kafka -> InventoryService: Событие OrderCancelled
+activate InventoryService
+InventoryService -> InventoryService: Отменяет резерв товара на складе
+InventoryService -> Kafka: Публикует StockReleased
+deactivate InventoryService
+
+== Отправка уведомлений ==
+
+Kafka -> NotifyService: Событие OrderCancelled
+activate NotifyService
+NotifyService -> NotifyService: Формирует уведомления\nоб отмене заказа
+NotifyService -> Buyer: Отправляет уведомление покупателю
+deactivate NotifyService
+
+== Получение статуса покупателем ==
+
+note right Buyer
+Мобильное приложение опрашивает текущий статус.
+end note
+
+Buyer -> OrderService: GET /orders/{orderId}
+activate OrderService
+OrderService --> Buyer: Детали заказа\n(status: CANCELLED)
+deactivate OrderService
+
+@enduml

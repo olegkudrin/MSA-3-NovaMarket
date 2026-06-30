@@ -1,0 +1,24 @@
+kubectl get pods -l pod=scaletestapp-pod
+-----
+NAME                           READY   STATUS    RESTARTS        AGE
+scaletestapp-bdcdcb9c9-k9p7b   1/1     Running   3 (6m59s ago)   60m
+
+Подал нагрузку 100 пользователей, 33 PRS, должно быть 4 пода, что и получилось.
+
+kubectl get pods -l pod=scaletestapp-pod
+-----
+NAME                           READY   STATUS    RESTARTS      AGE
+scaletestapp-bdcdcb9c9-bplt5   1/1     Running   0             3m37s
+scaletestapp-bdcdcb9c9-k9p7b   1/1     Running   3 (15m ago)   68m
+scaletestapp-bdcdcb9c9-pmts4   1/1     Running   0             3m37s
+scaletestapp-bdcdcb9c9-wmflc   1/1     Running   0             3m37s
+
+----------------------------------------------------------------------------------------
+kubectl describe deployment scaletestapp
+
+...пропущено
+
+Events:
+  Type    Reason             Age    From                   Message
+  ----    ------             ----   ----                   -------
+  Normal  ScalingReplicaSet  4m6s (x2 over 31m)  deployment-controller  Scaled up replica set scaletestapp-bdcdcb9c9 from 1 to 4

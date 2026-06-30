@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scaletestapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      pod: scaletestapp-pod
+  template:
+    metadata:
+      labels:
+        pod: scaletestapp-pod
+    spec:
+      containers:
+        - name: scaletestapp-container
+          image: "scaletestapp:v1"
+          imagePullPolicy: Never
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "10Mi"
+            limits:
+              cpu: "500m"
+              memory: "30Mi"
+          ports:
+            - containerPort: 8080

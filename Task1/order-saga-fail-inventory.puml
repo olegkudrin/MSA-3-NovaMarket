@@ -1,0 +1,59 @@
+@startuml order-saga-fail-inventory
+skinparam dpi 120
+
+title Saga: Процесс создания заказа (отклонено резервирование)
+
+actor "Покупатель" as Buyer
+
+== Создание заказа ==
+
+note right Buyer
+Обращение идет через API Gateway.
+end note
+
+Buyer -> OrderService: POST /orders
+activate OrderService
+OrderService -> OrderService: Проверяет данные заказа
+OrderService -> OrderService: Создает заказ\n(status: PENDING)
+OrderService -> Kafka: Публикует OrderCreated
+activate Kafka
+OrderService --> Buyer: 202 Accepted\n{orderId, status: PENDING}
+deactivate OrderService
+
+== Резервирование товара ==
+
+Kafka -> InventoryService: Событие OrderCreated
+activate InventoryService
+InventoryService -> InventoryService: Проверяет наличие нужного товара
+InventoryService -> InventoryService: Резервирование отклонено
+InventoryService -> Kafka: Публикует StockReservationFailed
+deactivate InventoryService
+
+== Отмена заказа (компенсация) ==
+
+Kafka -> OrderService: Событие StockReservationFailed
+activate OrderService
+OrderService -> OrderService: Обновляет статус заказа\n(status: CANCELLED)
+OrderService -> Kafka: Публикует OrderCancelled
+deactivate OrderService
+
+== Отправка уведомлений ==
+
+Kafka -> NotifyService: Событие OrderCancelled
+activate NotifyService
+NotifyService -> NotifyService: Формирует уведомления\nоб отмене заказа
+NotifyService -> Buyer: Отправляет уведомление покупателю
+deactivate NotifyService
+
+== Получение статуса покупателем ==
+
+note right Buyer
+Мобильное приложение опрашивает текущий статус.
+end note
+
+Buyer -> OrderService: GET /orders/{orderId}
+activate OrderService
+OrderService --> Buyer: Детали заказа\n(status: CANCELLED)
+deactivate OrderService
+
+@enduml
